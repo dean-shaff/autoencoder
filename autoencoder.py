@@ -5,6 +5,21 @@ import numpy as np
 from image_processor import load_csv 
 import cPickle as pickle 
 import matplotlib.pyplot as plt 
+import os 
+
+class Dataset(object):
+
+	def __init__(self,shared_array,file_name,name=None):
+
+		self.shared_array = shared_array
+		self.file_name = file_name
+		if name == None:
+			self.name = os.path.splitext(self.file_name)[0]
+		else:
+			self.name = name 
+		self.size = shared_array.get_value().shape[0]
+		self.vector_size = shared_array.get_value()[0].shape[0]
+
 
 class HiddenLayer(object):
 
@@ -76,13 +91,13 @@ class SGDAutoEncoder(object):
 
 	def __init__(self,model,dataset):
 		"""
-		Dataset should already be theano shared variables. 
-		It should already be flattened (vectorized)
+		Dataset should be "Dataset" object
 		"""
 		self.model = model 
 		self.cost = self.model.square_error()
 		self.dataset = dataset 
-		self.dataset_size = dataset.get_value().shape[0]
+		self.shared = dataset.shared_array
+		self.dataset_size = dataset.size 
 		self.fig = plt.figure()
 		self.ax1 = self.fig.add_subplot(211)
 		self.ax2 = self.fig.add_subplot(212)
@@ -109,21 +124,21 @@ class SGDAutoEncoder(object):
 			outputs = self.cost,
 			updates = updates,
 			givens = {
-				x: self.dataset[index * minibatch_size: (index + 1) * minibatch_size]
+				x: self.shared[index * minibatch_size: (index + 1) * minibatch_size]
 			}
  		)
 		# self.feed_thru = theano.function(
 		# 	inputs = [index],
 		# 	outputs = self.model.final_output,
 		# 	givens = {
-		# 		x: self.dataset[index * minibatch_size:(index + 1) * minibatch_size]
+		# 		x: self.shared[index * minibatch_size:(index + 1) * minibatch_size]
 		# 	}
 		# )
 		self.feed_thru = theano.function(
 			inputs = [index],
 			outputs = self.model.final_output,
 			givens = {
-				x: self.dataset[index:index+1]
+				x: self.shared[index:index+1]
 			}
 		)
  		print("Compiling functions took {:.2f} seconds.".format(time.time() - t0))
@@ -140,15 +155,16 @@ class SGDAutoEncoder(object):
 		lr = kwargs.get('lr',0.001)
 		minibatch_size = kwargs.get('mb_size',10)
 		n_epochs = kwargs.get('n_epochs',5)
-		train_batches = self.dataset.get_value(borrow=True).shape[0] // minibatch_size
+		train_batches = self.dataset.size // minibatch_size
 		trainer, feeder = self.compile_functions(**kwargs)
 		# trainer = self.compile_functions(**kwargs)
 		for epoch in xrange(n_epochs):
 			for mb_index in xrange(train_batches):
 				cost = trainer(mb_index)
 			print(cost, epoch)
-			if (epoch % 500 == 0):
-				self.plot_result((109,192))
+			if (epoch % 75 == 0):
+				# self.plot_result((54,96))
+				self.save_model("model_DS{}_epoch{}.pkl".format(self.dataset.name,epoch))
 
 	def plot_result(self,og_dim):
 		"""
@@ -193,25 +209,31 @@ class SGDAutoEncoder(object):
 		args:
 			-file_name: name of pickle file to save in. 
 		"""
+		print("Starting to save model")
+		t0 = time.time()
 		file_obj = open(file_name,'wb')
 		pickle.dump(self.model,file_obj)
 		file_obj.close()
+		print("Model saved. Took {} seconds.".format(time.time()-t0))
 
 if __name__ == '__main__':
 	#dataset processing:
 	dir_name1 = "/Users/dean/python_stuff_mac/machine_learning/autoencoder/data/jterm_vid"
-	csv_file = "imgSMALLmaxpool.csv"
+	csv_file = "img768_54-96maxpool.csv"
 	# load_data((200,200),dir_name1,csv_file,None)
 	shared = load_csv(csv_file,dir_name1)
-	xtest = shared.get_value()[0]
-	dim = xtest.shape[0]
+
+	dataset = Dataset(shared,csv_file)
+	dim = dataset.vector_size
+	# xtest = shared.get_value()[0]
+	# dim = xtest.shape[0]
 	# print(dim)
 	# print(shared.get_value().shape)
 	x = T.matrix('x')
 	rng = np.random.RandomState(1234)
 	auto = AutoEncoder(x,[dim,500,dim],rng)
-	sgd = SGDAutoEncoder(auto,shared)
-	sgd.train_model(n_epochs=5000)
+	sgd = SGDAutoEncoder(auto,dataset)
+	sgd.train_model(n_epochs=600)
 	# print(auto.params)
 	# print(auto.layers[0].n_out,auto.layers[1].n_out)
 

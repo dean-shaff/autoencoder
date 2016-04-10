@@ -3,3 +3,4 @@ data/jterm_vid/
 *.csv
 *.txt
 *.log
+*.pkl
