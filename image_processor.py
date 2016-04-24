@@ -88,7 +88,7 @@ def load_csv(csv_file, dir_name):
 		return None 
 
 if __name__ == '__main__':
-	dir_name1 = "/Users/dean/python_stuff_mac/machine_learning/autoencoder/data/jterm_vid"
+	dir_name1 = "/Users/dean/python_stuff_mac/machine_learning/autoencoder/data/v2vassignment2"
 	# csv_file = "imgSMALLmaxpool.csv"
-	load_data((20,20),dir_name1,up_to=None,max_pool=True)
+	load_data((5,5),dir_name1,up_to=None,max_pool=True)
 	# load_csv(csv_file,dir_name1)
